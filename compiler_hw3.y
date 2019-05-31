@@ -44,6 +44,10 @@ void attri_cpy(table_element* temp);
 int syntax_error_flag=0;
 int current_scope=0;
 
+int para_cnt=0;
+int para_attri[100];//the type of each parameter
+
+int func_cnt=0;
 int initializer_flag=0;
 int print_or_not=0;
 int un_f=0;
@@ -57,6 +61,8 @@ int check_static(char *name);
 int check_type(char *name);
 int check_return_type();
 void return_type_error();
+void para_attri_insert();
+void print_all();
 /* Use variable or self-defined structure to represent
  * nonterminal and token type*/
 
@@ -106,7 +112,7 @@ program
 			}
 		}
 		check_scope=0;
-		dump_symbol(current_scope);
+		dump_symbol(current_scope); //print_all();//print all for testing
 		print_ins();//////////////////print .j
 		}
     | 
@@ -159,7 +165,7 @@ jump_stat
     | RET ID SEMICOLON			{int i=check_return_type();char temp[100];
 					int f=lookup_symbol($2); int flag=semantic_error(f,0,$2);
 					int ch = check_static($2); int ty = check_type($2);
-					if(ty != i){return_type_error();}//raise error msg
+					if(ty != i){return_type_error();/*printf("%d %d\n",ty,i);*/}//raise error msg
 
 					if(ch==1){//if static-->store static
 						if(ty==0 || ty==2){
@@ -236,13 +242,13 @@ declaration
 								else {
 									int i=get_index($2);
 									char temp[100];
-									if($1==0)	{int ini=(int)$4;sprintf(temp,"\t\tldc %d\n",(int)$4);insert_ins(temp);memset(temp,'\0',100);
+									if($1==0)	{int ini=(int)$4;sprintf(temp,"\tldc %d\n",(int)$4);insert_ins(temp);memset(temp,'\0',100);
 											sprintf(temp,"\tistore %d\n",i);insert_ins(temp);print_ins();
 											}
-									else if($1==1)	{double ini=$4;sprintf(temp,"\t\tldc %lf\n",$4);insert_ins(temp);memset(temp,'\0',100);
+									else if($1==1)	{double ini=$4;sprintf(temp,"\tldc %lf\n",$4);insert_ins(temp);memset(temp,'\0',100);
 											sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);print_ins();
 											}
-									else if($1==2)	{int ini=(int)$4;sprintf(temp,"\t\tldc %d\n",(int)$4);insert_ins(temp);memset(temp,'\0',100);
+									else if($1==2)	{int ini=(int)$4;sprintf(temp,"\tldc %d\n",(int)$4);insert_ins(temp);memset(temp,'\0',100);
 											sprintf(temp,"\tistore %d\n",i);insert_ins(temp);print_ins();
 											}
 								}
@@ -258,13 +264,13 @@ declaration
 									int i=get_index($2);
 									char temp[100];
 									if($1==0)	{sprintf(temp,"\tldc 0\n");insert_ins(temp);memset(temp,'\0',100);
-											sprintf(temp,"\tistore %d\n",i);insert_ins(temp);print_ins();
+											sprintf(temp,"\tistore %d\n",i );insert_ins(temp);print_ins();
 											}
 									else if($1==1)	{sprintf(temp,"\tldc 0\n");insert_ins(temp);memset(temp,'\0',100);
-											sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);print_ins();
+											sprintf(temp,"\tfstore %d\n",i );insert_ins(temp);print_ins();
 											}
 									else if($1==2)	{sprintf(temp,"\tldc 0\n");insert_ins(temp);memset(temp,'\0',100);
-											sprintf(temp,"\tistore %d\n",i);insert_ins(temp);print_ins();
+											sprintf(temp,"\tistore %d\n",i );insert_ins(temp);print_ins();
 											}
 								}
 							}		
@@ -280,7 +286,7 @@ declaration
 									int i=get_index($2);
 									char temp[100];
 									sprintf(temp,"\tldc %s\n",$4);insert_ins(temp);memset(temp,'\0',100);
-									sprintf(temp,"\tastore %d\n",i);insert_ins(temp);print_ins();
+									sprintf(temp,"\tastore %d\n",i );insert_ins(temp);print_ins();
 								}
 							} 	
     | type_str ID SEMICOLON 				{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,1,$1,current_scope);
@@ -295,18 +301,51 @@ declaration
     | type ID LB parameter RB SEMICOLON			{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope);}//function
 ;
 declaration_scope_add
-    : type ID LB RB 	{	if(strcmp($2,"main")==0){
+    : type ID LB RB 	{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope-1);func_cnt++;//func_cnt is function count
+				if(strcmp($2,"main")==0){
 					char temp[100];
-					if($1==0)	{sprintf(temp,".method public static main([Ljava/lang/String;)I\n");insert_ins(temp);}
-					else if($1==1)	{sprintf(temp,".method public static main([Ljava/lang/String;)F\n");insert_ins(temp);}
-					else if($1==2)	{sprintf(temp,".method public static main([Ljava/lang/String;)Z\n");insert_ins(temp);}
-					else if($1==3)	{sprintf(temp,".method public static main([Ljava/lang/String;)V\n");insert_ins(temp);}
-					insert_ins(".limit stack 50\n");
+					if($1==0)	{sprintf(temp,".method public static main([Ljava/lang/String;)I\n");insert_ins(temp);memset(temp,'\0',100);}
+					else if($1==1)	{sprintf(temp,".method public static main([Ljava/lang/String;)F\n");insert_ins(temp);memset(temp,'\0',100);}
+					else if($1==2)	{sprintf(temp,".method public static main([Ljava/lang/String;)Z\n");insert_ins(temp);memset(temp,'\0',100);}
+					else if($1==3)	{sprintf(temp,".method public static main([Ljava/lang/String;)V\n");insert_ins(temp);memset(temp,'\0',100);}
+					insert_ins(".limit stack 50\n");memset(temp,'\0',100);
 					insert_ins(".limit locals 50\n");
 					print_ins();				
 				}
-			} LCB program RCB	{insert_ins(".end method\n");print_ins();int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope);}//function
-    | type ID LB parameter RB LCB program RCB		{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope);}//function
+				else{
+					char temp[100];
+					if($1==0)	{sprintf(temp,".method public static %s()I\n",$2);insert_ins(temp);memset(temp,'\0',100);}
+					else if($1==1)	{sprintf(temp,".method public static %s()F\n",$2);insert_ins(temp);memset(temp,'\0',100);}
+					else if($1==2)	{sprintf(temp,".method public static %s()Z\n",$2);insert_ins(temp);memset(temp,'\0',100);}
+					else if($1==3)	{sprintf(temp,".method public static %s()V\n",$2);insert_ins(temp);memset(temp,'\0',100);}
+					insert_ins(".limit stack 50\n");memset(temp,'\0',100);
+					insert_ins(".limit locals 50\n");
+					print_ins();
+				}
+			} LCB program RCB	{insert_ins(".end method\n");print_ins();}//function
+    | type ID LB parameter RB 	{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope-1);
+				char temp[100];
+				sprintf(temp,".method public static %s(",$2);
+				int i;
+				for(i=0;i<para_cnt;i++){
+					if(para_attri[i]==0){strcat(temp,"I");}
+					else if(para_attri[i]==1){strcat(temp,"F");}
+					else if(para_attri[i]==2){strcat(temp,"Z");}
+					else if(para_attri[i]==4){strcat(temp,"Ljava/lang/String;");}
+				}
+				func_cnt++;//func_cnt +1
+				
+				memset(para_attri,0,100);
+				strcat(temp,")");
+				if($1==0)	{strcat(temp,"I\n");insert_ins(temp);memset(temp,'\0',100);}
+				if($1==1)	{strcat(temp,"F\n");insert_ins(temp);memset(temp,'\0',100);}
+				if($1==2)	{strcat(temp,"Z\n");insert_ins(temp);memset(temp,'\0',100);}
+				if($1==3)	{strcat(temp,"V\n");insert_ins(temp);memset(temp,'\0',100);}
+				insert_ins(".limit stack 50\n");memset(temp,'\0',100);
+				insert_ins(".limit locals 50\n");
+				print_ins();
+
+				} LCB program RCB		{insert_ins(".end method\n");print_ins();para_cnt=0;}//function
 ;
 /* actions can be taken when meet the token or rule */
 initializer
@@ -319,10 +358,13 @@ initializer_str
     : STR_CONST 	{sprintf($$,"%s",$1);}
 ;
 parameter
-    : parameter COMMA type ID		{insert_para($3);int f=lookup_symbol($4); int flag=semantic_error(f,1,$4); create_symbol(flag,$4,2,$3,current_scope+1);}
-    | parameter COMMA type_str ID	{insert_para($3);int f=lookup_symbol($4); int flag=semantic_error(f,1,$4); create_symbol(flag,$4,2,$3,current_scope+1);}
-    | type ID				{insert_para($1);int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,2,$1,current_scope+1);}
-    | type_str ID			{insert_para($1);int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,2,$1,current_scope+1);}
+    : parameter COMMA type ID		{insert_para($3);int f=lookup_symbol($4); int flag=semantic_error(f,1,$4); create_symbol(flag,$4,2,$3,current_scope+1);para_attri[para_cnt]=$3;para_cnt++;}
+    | parameter COMMA type_str ID	{insert_para($3);int f=lookup_symbol($4); int flag=semantic_error(f,1,$4); create_symbol(flag,$4,2,$3,current_scope+1);para_attri[para_cnt]=4;para_cnt++;}
+    | type ID				{insert_para($1);int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,2,$1,current_scope+1);
+					para_attri[para_cnt]=$1;//store the type
+					para_cnt++;
+					}
+    | type_str ID			{insert_para($1);int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,2,$1,current_scope+1);para_attri[para_cnt]=4;para_cnt++;}
 ;
 argument
     : argument COMMA ID	{int f=lookup_symbol($3); int flag=semantic_error(f,0,$3);}
@@ -365,10 +407,10 @@ assignment_expression
 							char temp[100];int i=get_index($1);
 							if(ty==0){
 								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
-								sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+								sprintf(temp,"\tistore %d\n",i );insert_ins(temp);
 							}
 							else {
-								sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+								sprintf(temp,"\tfstore %d\n",i );insert_ins(temp);	
 							}
 							
 							
@@ -412,11 +454,11 @@ factor
 			else {
 				char temp[100];int i=get_index($1);
 				if(ty==0){
-					sprintf(temp,"\tiload %d\n",i);insert_ins(temp);memset(temp,'\0',100);
+					sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
 					sprintf(temp,"\ti2f\n");insert_ins(temp);
 				}
 				else {
-					sprintf(temp,"\tfload %d\n",i);insert_ins(temp);	
+					sprintf(temp,"\tfload %d\n",i );insert_ins(temp);	
 				}
 							
 							
@@ -458,7 +500,7 @@ bool_fi
 print_func
     : PRINT LB ID RB SEMICOLON		{int f=lookup_symbol($3); int flag=semantic_error(f,0,$3);
 					int ch = check_static($3); int ty = check_type($3);
-					if(ch==1){//if static-->store static
+					if(ch==1){ //if static-->store static
 						char temp[100];
 						if(ty==0 || ty==2){
 							sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$3);insert_ins(temp);memset(temp,'\0',100);
@@ -515,11 +557,20 @@ print_func
 					}
     | PRINT LB initializer RB SEMICOLON	{
 					char temp[100];
+					if(initializer_flag==0){
+					sprintf(temp,"\tldc %d\n",(int)$3);insert_ins(temp);memset(temp,'\0',100);
+					sprintf(temp,"\tgetstatic java/lang/System/out Ljava/io/PrintStream;\n");insert_ins(temp);memset(temp,'\0',100);
+					sprintf(temp,"\tswap\n");insert_ins(temp);memset(temp,'\0',100);
+					sprintf(temp,"\tinvokevirtual java/io/PrintStream/println(I)V\n");insert_ins(temp);
+					print_ins();
+					}
+					else{
 					sprintf(temp,"\tldc %lf\n",$3);insert_ins(temp);memset(temp,'\0',100);
 					sprintf(temp,"\tgetstatic java/lang/System/out Ljava/io/PrintStream;\n");insert_ins(temp);memset(temp,'\0',100);
 					sprintf(temp,"\tswap\n");insert_ins(temp);memset(temp,'\0',100);
 					sprintf(temp,"\tinvokevirtual java/io/PrintStream/println(F)V\n");insert_ins(temp);
 					print_ins();
+					}
 					}
 ;
 
@@ -703,11 +754,43 @@ void dump_symbol(int scope) {
 	table_element* T=table_head;
 	table_element* T2=table_head;
 	table_element* T3=table_head;
+	table_element* T5=table_head;
 	if(!T){
 		return;
 	}
 	int i=0,max=0;
 	max=T2->scope;
+	if(max>0){
+		while(T5){
+			if(max < T5->scope){
+				max=T5->scope;
+			}
+			T5 = T5 -> next;
+		}
+		if(T2->scope==max){
+			printf("\n%-10s%-10s%-12s%-10s%-10s%-10s\n","Index", "Name", "Kind", "Type", "Scope", "Attribute");
+			while(T2->scope==max){
+				printf("\n%-10d%-10s",i,T2->name);
+				if(T2->kind==0){printf("%-12s","function");}
+				else if(T2->kind==1){printf("%-12s","variable");}
+				else {printf("%-12s","parameter");}
+
+				if(T2->type==0){printf("%-10s","int");}
+				else if(T2->type==1){printf("%-10s","float");}
+				else if(T2->type==2){printf("%-10s","bool");}
+				else if(T2->type==3){printf("%-10s","void");}
+				else 	{printf("%-10s","string");}
+				printf("%-10d",T2->scope);
+				i++;
+				T3=T2;
+				T2=T2->next;
+				free(T3);
+			}
+			table_head=T2;
+			printf("\n\n");
+			return;
+		}
+	}
 	while(T2){
 		if(max < T2->scope){
 			max=T2->scope;
@@ -716,10 +799,14 @@ void dump_symbol(int scope) {
 	}
 	if(max==0 || (max!=scope+1)){return;}
 	printf("\n%-10s%-10s%-12s%-10s%-10s%-10s\n","Index", "Name", "Kind", "Type", "Scope", "Attribute");
+	int flag_find=0;
 	while(T){
-		if(T->scope < max){
+		if(T->scope < max && flag_find==0){
 			T3=T;
 			T=T->next;
+			if(T->scope==max){
+				flag_find=1;
+			}
 			continue;
 		}
 		printf("\n%-10d%-10s",i,T->name);
@@ -749,11 +836,17 @@ void dump_symbol(int scope) {
 			}
 		}
 		i++;
-		T=T->next;			
+		table_element* T4 =T;
+		T=T->next;
+		free(T4);
+		if(T){
+			if(T->scope<max){break;}
+		}	
 	}
 	printf("\n\n");
-	free(T3->next);
-	T3->next=NULL;
+	T3->next=T;
+	//free(T3->next);
+	//T3->next=NULL;
 }
 void insert_para(int para){
 	int i;
@@ -834,7 +927,7 @@ int get_index(char *name){
 	table_element* T=table_head;
 	int i=0,now=current_scope;
 	while(T){
-		if(T->scope==now){
+		if(T->scope<=now && T->kind!=0 && T->scope!=0){
 			if(strcmp(T->name,name)==0){
 				break;
 			}
@@ -874,9 +967,13 @@ int check_type(char *name){
 }
 int check_return_type(){
 	table_element* T=table_head;
+	int i=0;
 	while(T){
 		if(T->kind==0){
-			if(T->scope==current_scope-1){
+			i++;
+			//printf("A: %d\n",i);
+			if(i==func_cnt){
+				//printf("A: %d\n",func_cnt);
 				return T->type;
 			}
 		}
@@ -894,5 +991,15 @@ void return_type_error(){
 	printf("| function return type is not the same");
 	printf("\n|-----------------------------------------------|\n\n");
 	print_or_not=1;
+	return;
+}
+void para_attri_insert(){
+	int i;
+	for(i=0;i<para_cnt;i++){
+	}
+}
+void print_all(){
+	table_element* T=table_head;
+	while(T){printf("XX: %s\n",T->name);T=T->next;}
 	return;
 }
