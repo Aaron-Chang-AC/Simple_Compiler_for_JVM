@@ -44,6 +44,7 @@ void attri_cpy(table_element* temp);
 int syntax_error_flag=0;
 int current_scope=0;
 
+int initializer_flag=0;
 int print_or_not=0;
 int un_f=0;
 int check_scope=0;
@@ -54,6 +55,8 @@ void print_ins();
 int get_index(char *name);
 int check_static(char *name);
 int check_type(char *name);
+int check_return_type();
+void return_type_error();
 /* Use variable or self-defined structure to represent
  * nonterminal and token type*/
 
@@ -127,9 +130,72 @@ use_function
     | ID LB argument RB		 	{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
 ;
 jump_stat
-    : RET SEMICOLON			{char temp[100];sprintf(temp,"\treturn\n");insert_ins(temp);print_ins();}
-    | RET initializer SEMICOLON	
-    | RET basic_op SEMICOLON
+    : RET SEMICOLON			{int i=check_return_type();char temp[100];
+					if(i==3){sprintf(temp,"\treturn\n");}
+					else{return_type_error();}//raise error msg
+					insert_ins(temp);print_ins();
+					}
+    | RET initializer SEMICOLON		{int i=check_return_type();char temp[100];
+					if(i==initializer_flag){
+						if(i==0 || i==2){
+							sprintf(temp,"\tldc %d\n",(int)$2);
+							insert_ins(temp);
+							memset(temp,'\0',100);
+							sprintf(temp,"\tireturn\n");
+							insert_ins(temp);
+						}
+						else {
+							sprintf(temp,"\tldc %lf\n",$2);
+							insert_ins(temp);
+							memset(temp,'\0',100);
+							sprintf(temp,"\tfreturn\n");
+							insert_ins(temp);
+						}
+					}
+					else{return_type_error();}//raise error msg
+					print_ins();initializer_flag=0;//initializer_flag init
+
+					}
+    | RET ID SEMICOLON			{int i=check_return_type();char temp[100];
+					int f=lookup_symbol($2); int flag=semantic_error(f,0,$2);
+					int ch = check_static($2); int ty = check_type($2);
+					if(ty != i){return_type_error();}//raise error msg
+
+					if(ch==1){//if static-->store static
+						if(ty==0 || ty==2){
+							sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$2);
+							insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\tireturn\n");insert_ins(temp);
+						}
+						else if(ty==1){
+							sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$2);
+							insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\tfreturn\n");insert_ins(temp);
+						}
+						else{
+						return_type_error();
+						}
+						
+					}
+					else {
+						int i1 = get_index($2);
+						if(ty==0 || ty==2){
+							sprintf(temp,"\tiload %d\n",i1);
+							insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\tireturn\n");insert_ins(temp);
+						}
+						else if(ty==1){
+							sprintf(temp,"\tfload %d\n",i1);
+							insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\tfreturn\n");insert_ins(temp);
+						}
+						else{
+						return_type_error();
+						}
+					}
+					print_ins();
+					}
+    | RET basic_op SEMICOLON		{char temp[100];int i=check_return_type();
+					if(i==0){sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\tireturn\n");insert_ins(temp);}
+					else {sprintf(temp,"\tfreturn\n");insert_ins(temp);}
+					print_ins();
+					}
     | CONT SEMICOLON
     | BREAK SEMICOLON
 ;
@@ -244,10 +310,10 @@ declaration_scope_add
 ;
 /* actions can be taken when meet the token or rule */
 initializer
-    : I_CONST 		{$$ = $1;}
-    | F_CONST 		{$$ = $1;}
-    | _TRUE		{$$ = $1;}
-    | _FALSE		{$$ = $1;}
+    : I_CONST 		{$$ = $1;initializer_flag=0;}//initializer_flag=0;
+    | F_CONST 		{$$ = $1;initializer_flag=1;}//initializer_flag=1;
+    | _TRUE		{$$ = $1;initializer_flag=2;}//initializer_flag=2;
+    | _FALSE		{$$ = $1;initializer_flag=2;}//initializer_flag=2;
 ;
 initializer_str
     : STR_CONST 	{sprintf($$,"%s",$1);}
@@ -321,6 +387,7 @@ basic_op
     | basic_op SUB multiplication	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);print_ins();}
     | multiplication			
 ;
+
 multiplication
     : multiplication MUL factor	{char temp[100];sprintf(temp,"\tfmul\n");insert_ins(temp);print_ins();}
     | multiplication DIV factor	{char temp[100];sprintf(temp,"\tfdiv\n");insert_ins(temp);print_ins();}
@@ -804,4 +871,28 @@ int check_type(char *name){
 		T=T->next;
 	}
 	return 0;//default
+}
+int check_return_type(){
+	table_element* T=table_head;
+	while(T){
+		if(T->kind==0){
+			if(T->scope==current_scope-1){
+				return T->type;
+			}
+		}
+		T=T->next;
+	}
+	return 3; //default type is void
+}
+void return_type_error(){
+	if(binary_yyline[yylineno+1]!=1){
+		binary_yyline[yylineno+1]=1;				
+		printf("%d: %s\n",yylineno+1,buff);
+	}
+	printf("\n|-----------------------------------------------|\n");
+	printf("| Error found in line %d: %s\n", yylineno+1, buff);
+	printf("| function return type is not the same");
+	printf("\n|-----------------------------------------------|\n\n");
+	print_or_not=1;
+	return;
 }
