@@ -47,6 +47,9 @@ int current_scope=0;
 int para_cnt=0;
 int para_attri[100];//the type of each parameter
 
+int op_assignment_check_static=0;
+int op_assignment_check_type=0;
+char op_assignment_name[50];
 int func_cnt=0;
 int initializer_flag=0;
 int print_or_not=0;
@@ -367,7 +370,8 @@ parameter
     | type_str ID			{insert_para($1);int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,2,$1,current_scope+1);para_attri[para_cnt]=4;para_cnt++;}
 ;
 argument
-    : argument COMMA ID	{int f=lookup_symbol($3); int flag=semantic_error(f,0,$3);}
+    : argument COMMA ID			{int f=lookup_symbol($3); int flag=semantic_error(f,0,$3);}
+    | argument COMMA initializer
     | assignment_expression
     | bool_expression
 ;
@@ -468,15 +472,373 @@ factor
     | initializer	{char temp[100];sprintf(temp,"\tldc %lf\n",$1);insert_ins(temp);print_ins();}
 ;
 post_operation
-    : ID INC	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | ID DEC	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
+    : ID INC	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+		char temp[100];int i=get_index($1);
+		int ch = check_static($1); int ty = check_type($1);
+		if(ch==1){//if static-->store static
+			char temp[100];
+			if(ty==0){
+				sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tiadd\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tputstatic compiler_hw3/%s I\n",$1);insert_ins(temp);
+			}
+			else {
+				sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1.0\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tfadd\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tputstatic compiler_hw3/%s F\n",$1);insert_ins(temp);
+			}	
+						
+		}
+		else {
+			char temp[100];int i=get_index($1);
+			if(ty==0){
+				sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tiadd\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+			}
+			else {
+				sprintf(temp,"\tfload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1.0\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tfadd\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+			}
+							
+							
+		}
+		print_ins();
+		}
+    | ID DEC	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+		char temp[100];int i=get_index($1);
+		int ch = check_static($1); int ty = check_type($1);
+		if(ch==1){//if static-->store static
+			char temp[100];
+			if(ty==0){
+				sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tisub\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tputstatic compiler_hw3/%s I\n",$1);insert_ins(temp);
+			}
+			else {
+				sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1.0\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tputstatic compiler_hw3/%s F\n",$1);insert_ins(temp);
+			}	
+						
+		}
+		else {
+			char temp[100];int i=get_index($1);
+			if(ty==0){
+				sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tisub\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+			}
+			else {
+				sprintf(temp,"\tfload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tldc 1.0\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+			}
+							
+							
+		}
+		}
 ;
 op_assignment
-    : ID ADDASGN assignment_expression_iter	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | ID DECASGN assignment_expression_iter	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | ID MULASGN assignment_expression_iter	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | ID DIVASGN assignment_expression_iter	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | ID MODASGN assignment_expression_iter	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
+    : ID ADDASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+						int i=get_index($1);
+						int ch = check_static($1); int ty = check_type($1);
+						op_assignment_check_static = ch;//for checking static
+						op_assignment_check_type = ty; //for checking int or float
+						strcpy(op_assignment_name,$1); //for copying ID
+						if(ch==1){//if static-->store static
+							char temp[100];
+							if(ty==0){
+								sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);memset(temp,'\0',100);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index($1);
+							if(ty==0){
+								sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tfload %d\n",i );insert_ins(temp);memset(temp,'\0',100);	
+							}
+							
+							
+						}
+			} assignment_expression_iter 	{
+						if(op_assignment_check_static==1){//if static-->store static
+							char temp[100];
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfadd\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s I\n",op_assignment_name);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfadd\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s F\n",op_assignment_name);insert_ins(temp);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index(op_assignment_name);
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfadd\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfadd\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+							}
+							
+							
+						}memset(op_assignment_name,'\0',50);
+							}
+    | ID DECASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+						int i=get_index($1);
+						int ch = check_static($1); int ty = check_type($1);
+						op_assignment_check_static = ch;//for checking static
+						op_assignment_check_type = ty; //for checking int or float
+						strcpy(op_assignment_name,$1); //for copying ID
+						if(ch==1){//if static-->store static
+							char temp[100];
+							if(ty==0){
+								sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);memset(temp,'\0',100);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index($1);
+							if(ty==0){
+								sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tfload %d\n",i );insert_ins(temp);memset(temp,'\0',100);	
+							}
+							
+							
+						}
+			} assignment_expression_iter	{
+						if(op_assignment_check_static==1){//if static-->store static
+							char temp[100];
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s I\n",op_assignment_name);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s F\n",op_assignment_name);insert_ins(temp);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index(op_assignment_name);
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+							}
+							
+							
+						}memset(op_assignment_name,'\0',50);
+							}
+    | ID MULASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+						int i=get_index($1);
+						int ch = check_static($1); int ty = check_type($1);
+						op_assignment_check_static = ch;//for checking static
+						op_assignment_check_type = ty; //for checking int or float
+						strcpy(op_assignment_name,$1); //for copying ID
+						if(ch==1){//if static-->store static
+							char temp[100];
+							if(ty==0){
+								sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);memset(temp,'\0',100);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index($1);
+							if(ty==0){
+								sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tfload %d\n",i );insert_ins(temp);memset(temp,'\0',100);	
+							}
+							
+							
+						}
+			} assignment_expression_iter 	{
+						if(op_assignment_check_static==1){//if static-->store static
+							char temp[100];
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfmul\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s I\n",op_assignment_name);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfmul\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s F\n",op_assignment_name);insert_ins(temp);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index(op_assignment_name);
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfmul\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfmul\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+							}
+							
+							
+						}memset(op_assignment_name,'\0',50);
+							}
+    | ID DIVASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+						int i=get_index($1);
+						int ch = check_static($1); int ty = check_type($1);
+						op_assignment_check_static = ch;//for checking static
+						op_assignment_check_type = ty; //for checking int or float
+						strcpy(op_assignment_name,$1); //for copying ID
+						if(ch==1){//if static-->store static
+							char temp[100];
+							if(ty==0){
+								sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);memset(temp,'\0',100);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index($1);
+							if(ty==0){
+								sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tfload %d\n",i );insert_ins(temp);memset(temp,'\0',100);	
+							}
+							
+							
+						}
+			} assignment_expression_iter	{
+						if(op_assignment_check_static==1){//if static-->store static
+							char temp[100];
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfdiv\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s I\n",op_assignment_name);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfdiv\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s F\n",op_assignment_name);insert_ins(temp);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index(op_assignment_name);
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfdiv\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfdiv\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+							}
+							
+							
+						}memset(op_assignment_name,'\0',50);
+							}
+    | ID MODASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+						int i=get_index($1);
+						int ch = check_static($1); int ty = check_type($1);
+						op_assignment_check_static = ch;//for checking static
+						op_assignment_check_type = ty; //for checking int or float
+						strcpy(op_assignment_name,$1); //for copying ID
+						if(ch==1){//if static-->store static
+							char temp[100];
+							if(ty==0){
+								sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);memset(temp,'\0',100);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index($1);
+							if(ty==0){
+								sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\ti2f\n");insert_ins(temp);memset(temp,'\0',100);
+							}
+							else {
+								sprintf(temp,"\tfload %d\n",i );insert_ins(temp);memset(temp,'\0',100);	
+							}
+							
+							
+						}
+			} assignment_expression_iter	{
+						if(op_assignment_check_static==1){//if static-->store static
+							char temp[100];
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfrem\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s I\n",op_assignment_name);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfrem\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s F\n",op_assignment_name);insert_ins(temp);
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index(op_assignment_name);
+							if(op_assignment_check_type==0){
+								sprintf(temp,"\tfrem\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tistore %d\n",i);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfrem\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tfstore %d\n",i);insert_ins(temp);	
+							}
+							
+							
+						}memset(op_assignment_name,'\0',50);
+							}
 ;
 bool_expression
     : bool_op
