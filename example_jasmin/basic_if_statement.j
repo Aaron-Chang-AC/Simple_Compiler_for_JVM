@@ -40,7 +40,7 @@ LABEL_EQ:
 	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
 	goto EXIT_0
 LABEL_GT:
-	ldc "a is larger to 40"
+	ldc "a is larger than 40"
 	getstatic java/lang/System/out Ljava/io/PrintStream;
 	swap
 	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V

@@ -1,24 +1,19 @@
-int foo(int a,int b) {
-   a += 6;
-   int e=3.5;
-   if(a>5){
-        int c=3;
-	if(a>6){
-		int d=4;	
-	}
-   }
-   return a;
-}
-
-void lol(int a) {
-    print(a);
-    return;
+float lol(int a, int b) {
+    float h;
+    h = a + b * 0.1;
+    print(h);
+    return h;
 }
 
 void main(){
    int a;
-   a = 0;
-   lol(a);
+   int b;
+   a += 87;
+   b = (a-1)*2;
+   float e;
+   e=lol(a,b);
+   e++;
+   print(e);
    return;
 
 }

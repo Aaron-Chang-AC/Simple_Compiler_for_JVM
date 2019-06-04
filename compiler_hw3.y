@@ -47,6 +47,14 @@ int current_scope=0;
 int para_cnt=0;
 int para_attri[100];//the type of each parameter
 
+int if_type=-1;
+int if_cnt=0;
+int ex_cnt=0;
+int wh_cnt=0;
+int argu[50];
+int argu_cnt=0;
+
+int hold_on=0;
 int op_assignment_check_static=0;
 int op_assignment_check_type=0;
 char op_assignment_name[50];
@@ -66,6 +74,11 @@ int check_return_type();
 void return_type_error();
 void para_attri_insert();
 void print_all();
+void check_return_type_use(char *name);
+void check_argu(char *name);
+void argu_type_error();
+void divide_invalid();
+void rem_invalid();
 /* Use variable or self-defined structure to represent
  * nonterminal and token type*/
 
@@ -94,7 +107,7 @@ void print_all();
 /* Nonterminal with return, which need to sepcify type */
 %type <i_val> type type_str 
 %type <string> initializer_str
-%type <f_val> initializer
+%type <f_val> initializer basic_op multiplication factor
 %nonassoc IF ELSE
 %left ADD SUB MUL DIV MOD
 /* Yacc will start at this nonterminal */
@@ -134,9 +147,23 @@ stat
     | use_function	
 ;
 use_function
-    : ID LB RB SEMICOLON 		{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | ID LB argument RB SEMICOLON 	{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | ID LB argument RB		 	{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
+    : ID LB RB SEMICOLON 		{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+					check_return_type_use($1);//invoke function
+					memset(argu,0,50);
+					}
+    | ID LB argument RB SEMICOLON	{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+					check_return_type_use($1); check_argu($1);argu_cnt=0;memset(argu,0,50);
+		
+					} 
+;
+asgn_use_function
+    : ID LB RB 				{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+					check_return_type_use($1);memset(argu,0,50);memset(argu,0,50);
+					}
+    | ID LB argument RB			{un_f=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+					check_return_type_use($1); check_argu($1);argu_cnt=0;memset(argu,0,50);
+
+					}
 ;
 jump_stat
     : RET SEMICOLON			{int i=check_return_type();char temp[100];
@@ -213,7 +240,7 @@ compound_stat
     | for_stat
     | while_stat
 ;
-if_stat
+if_stat //same scope
     : IF LB bool_expression RB LCB program RCB			
     | IF LB bool_expression RB LCB program RCB else_stat
 ;
@@ -232,7 +259,16 @@ for_stat
     | FOR LB SEMICOLON SEMICOLON RB LCB program RCB
 ;
 while_stat
-    : WHILE LB bool_expression RB LCB program RCB
+    : WHILE LB {char temp[100];sprintf(temp,"LABEL_BEGIN:\n");insert_ins(temp);print_ins();wh_cnt++;} bool_expression {
+	char temp[100];
+	insert_ins("\tgoto LABEL_FALSE\n");print_ins();
+	if(if_type==0){sprintf(temp,"LABEL_MT:\n");insert_ins(temp);print_ins();}
+	else if(if_type==1)	{sprintf(temp,"LABEL_LT:\n");insert_ins(temp);print_ins();}
+	else if(if_type==2)	{sprintf(temp,"LABEL_MTE:\n");insert_ins(temp);print_ins();}
+	else if(if_type==3)	{sprintf(temp,"LABEL_LTE:\n");insert_ins(temp);print_ins();}
+	else if(if_type==4)	{sprintf(temp,"LABEL_EQ:\n");insert_ins(temp);print_ins();}
+	else			{sprintf(temp,"LABEL_NE:\n");insert_ins(temp);print_ins();}
+	} RB LCB program RCB {insert_ins("\tgoto LABEL_BEGIN\n");insert_ins("LABEL_FALSE:\n");print_ins();}
 ;
 declaration
     : type ID ASGN initializer SEMICOLON 		{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,1,$1,current_scope);
@@ -269,7 +305,7 @@ declaration
 									if($1==0)	{sprintf(temp,"\tldc 0\n");insert_ins(temp);memset(temp,'\0',100);
 											sprintf(temp,"\tistore %d\n",i );insert_ins(temp);print_ins();
 											}
-									else if($1==1)	{sprintf(temp,"\tldc 0\n");insert_ins(temp);memset(temp,'\0',100);
+									else if($1==1)	{int v=0;sprintf(temp,"\tldc %lf\n",(double)v);insert_ins(temp);memset(temp,'\0',100);
 											sprintf(temp,"\tfstore %d\n",i );insert_ins(temp);print_ins();
 											}
 									else if($1==2)	{sprintf(temp,"\tldc 0\n");insert_ins(temp);memset(temp,'\0',100);
@@ -370,10 +406,56 @@ parameter
     | type_str ID			{insert_para($1);int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,2,$1,current_scope+1);para_attri[para_cnt]=4;para_cnt++;}
 ;
 argument
-    : argument COMMA ID			{int f=lookup_symbol($3); int flag=semantic_error(f,0,$3);}
-    | argument COMMA initializer
-    | assignment_expression
-    | bool_expression
+    : argument COMMA ID	{int f=lookup_symbol($3); int flag=semantic_error(f,0,$3);
+			int ch = check_static($3); int ty = check_type($3);
+			if(ch==1){//if static-->store static
+				char temp[100];
+				if(ty==0){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$3);insert_ins(temp);memset(temp,'\0',100);
+					argu[argu_cnt]=0;
+				}
+				else if (ty == 1){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$3);insert_ins(temp);argu[argu_cnt]=1;
+				}	
+				else if (ty == 2){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s Z\n",$3);insert_ins(temp);argu[argu_cnt]=2;
+				}
+				else  {
+					sprintf(temp,"\tgetstatic compiler_hw3/%s Ljava/lang/String;\n",$3);insert_ins(temp);argu[argu_cnt]=4;
+				}
+				argu_cnt++;	
+			}
+			else {
+				char temp[100];int i=get_index($3);
+				if(ty==0){
+					sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+					argu[argu_cnt]=0;
+				}
+				else if(ty == 1){
+					sprintf(temp,"\tfload %d\n",i );insert_ins(temp);argu[argu_cnt]=1;	
+				}
+				else if (ty == 2){
+					sprintf(temp,"\tiload %d\n",i );insert_ins(temp);argu[argu_cnt]=2;
+				}
+				else  {
+					sprintf(temp,"\taload %d\n",i );insert_ins(temp);argu[argu_cnt]=4;
+				}
+				argu_cnt++;					
+			}
+			print_ins();
+			}
+    | argument COMMA initializer 	{
+					char temp[100];
+					if(initializer_flag==0)		{argu[argu_cnt]=0;sprintf(temp,"\tldc %d\n",(int)$3);}
+					else if(initializer_flag==1)	{argu[argu_cnt]=1;sprintf(temp,"\tldc %f\n",$3);}
+					else 				{argu[argu_cnt]=2;sprintf(temp,"\tldc %d\n",(int)$3);}
+					insert_ins(temp);
+					print_ins();
+					argu_cnt++;
+					initializer_flag=0;
+					}
+    | assignment_expression //not be tested
+    | argu_fi
 ;
 type
     : INT 	{$$=0;}
@@ -422,27 +504,62 @@ assignment_expression
 						print_ins();//print instructions
 						}
     | post_operation				
-    | op_assignment							
+    | op_assignment	
+    | ID ASGN asgn_use_function	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+				int ch = check_static($1); int ty = check_type($1);
+						if(ch==1){//if static-->store static
+							char temp[100];
+							if(ty==0){
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tputstatic compiler_hw3/%s I\n",$1);insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tputstatic compiler_hw3/%s F\n",$1);insert_ins(temp);	
+							}	
+						
+						}
+						else {
+							char temp[100];int i=get_index($1);
+							if(ty==0){
+								sprintf(temp,"\tf2i\n");insert_ins(temp);memset(temp,'\0',100);
+								sprintf(temp,"\tistore %d\n",i );insert_ins(temp);
+							}
+							else {
+								sprintf(temp,"\tfstore %d\n",i );insert_ins(temp);	
+							}
+							
+							
+						}
+						print_ins();//print instructions
+				}		
 ;
 assignment_expression_iter
     : ID ASGN assignment_expression_iter	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}	
     | basic_op 								
 ;
 basic_op
-    : basic_op ADD multiplication	{char temp[100];sprintf(temp,"\tfadd\n");insert_ins(temp);print_ins();}
-    | basic_op SUB multiplication	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);print_ins();}
-    | multiplication			
+    : basic_op ADD multiplication	{$$=$1+$3;char temp[100];sprintf(temp,"\tfadd\n");insert_ins(temp);print_ins();}
+    | basic_op SUB multiplication	{$$=$1-$3;char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);print_ins();}
+    | multiplication			{$$=$1;}
 ;
 
 multiplication
-    : multiplication MUL factor	{char temp[100];sprintf(temp,"\tfmul\n");insert_ins(temp);print_ins();}
-    | multiplication DIV factor	{char temp[100];sprintf(temp,"\tfdiv\n");insert_ins(temp);print_ins();}
-    | multiplication MOD factor	{char temp[100];sprintf(temp,"\tfrem\n");insert_ins(temp);print_ins();}
-    | factor			
+    : multiplication MUL factor	{$$=$1*$3;char temp[100];sprintf(temp,"\tfmul\n");insert_ins(temp);print_ins();}
+    | multiplication DIV factor	{if($3==0){divide_invalid();} else {$$=$1/$3;char temp[100];sprintf(temp,"\tfdiv\n");insert_ins(temp);print_ins();}}
+    | multiplication MOD factor	{double i=$1-((int)$1); double j=$3-((int)$3);
+				if (i>0 || j>0){
+					rem_invalid();
+				}
+				 else {
+					$$=((int)$1) % ((int)$3);
+					char temp[100];sprintf(temp,"\tfrem\n");insert_ins(temp);print_ins();
+				}
+				}
+    | factor			{$$=$1;}
 ;
 factor
-    : LB basic_op RB	
-    | ID		{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+    : LB basic_op RB	{$$=$2;}
+    | ID		{$$=1;int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
 			int ch = check_static($1); int ty = check_type($1);
 			if(ch==1){//if static-->store static
 				char temp[100];
@@ -469,7 +586,7 @@ factor
 			}
 			print_ins();
 			}
-    | initializer	{char temp[100];sprintf(temp,"\tldc %lf\n",$1);insert_ins(temp);print_ins();}
+    | initializer	{$$=$1;char temp[100];sprintf(temp,"\tldc %lf\n",$1);insert_ins(temp);print_ins();initializer_flag=0;}
 ;
 post_operation
     : ID INC	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
@@ -546,6 +663,7 @@ post_operation
 							
 							
 		}
+		print_ins();
 		}
 ;
 op_assignment
@@ -577,7 +695,7 @@ op_assignment
 							}
 							
 							
-						}
+						}print_ins();
 			} assignment_expression_iter 	{
 						if(op_assignment_check_static==1){//if static-->store static
 							char temp[100];
@@ -605,7 +723,7 @@ op_assignment
 							}
 							
 							
-						}memset(op_assignment_name,'\0',50);
+						}memset(op_assignment_name,'\0',50);print_ins();
 							}
     | ID DECASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
 						int i=get_index($1);
@@ -635,7 +753,7 @@ op_assignment
 							}
 							
 							
-						}
+						}print_ins();
 			} assignment_expression_iter	{
 						if(op_assignment_check_static==1){//if static-->store static
 							char temp[100];
@@ -663,7 +781,7 @@ op_assignment
 							}
 							
 							
-						}memset(op_assignment_name,'\0',50);
+						}memset(op_assignment_name,'\0',50);print_ins();
 							}
     | ID MULASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
 						int i=get_index($1);
@@ -693,7 +811,7 @@ op_assignment
 							}
 							
 							
-						}
+						}print_ins();
 			} assignment_expression_iter 	{
 						if(op_assignment_check_static==1){//if static-->store static
 							char temp[100];
@@ -721,7 +839,7 @@ op_assignment
 							}
 							
 							
-						}memset(op_assignment_name,'\0',50);
+						}memset(op_assignment_name,'\0',50);print_ins();
 							}
     | ID DIVASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
 						int i=get_index($1);
@@ -751,7 +869,7 @@ op_assignment
 							}
 							
 							
-						}
+						}print_ins();
 			} assignment_expression_iter	{
 						if(op_assignment_check_static==1){//if static-->store static
 							char temp[100];
@@ -779,7 +897,7 @@ op_assignment
 							}
 							
 							
-						}memset(op_assignment_name,'\0',50);
+						}memset(op_assignment_name,'\0',50);print_ins();
 							}
     | ID MODASGN 	{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
 						int i=get_index($1);
@@ -809,7 +927,7 @@ op_assignment
 							}
 							
 							
-						}
+						}print_ins();
 			} assignment_expression_iter	{
 						if(op_assignment_check_static==1){//if static-->store static
 							char temp[100];
@@ -837,27 +955,132 @@ op_assignment
 							}
 							
 							
-						}memset(op_assignment_name,'\0',50);
+						}memset(op_assignment_name,'\0',50);print_ins();
 							}
 ;
 bool_expression
     : bool_op
 ;
 bool_op
-    : bool_op MT bool_fi	
-    | bool_op LT bool_fi	
-    | bool_op MTE bool_fi
-    | bool_op LTE bool_fi	
-    | bool_op EQ bool_fi	
-    | bool_op NE bool_fi	
+    : bool_op MT bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
+				sprintf(temp,"\tifgt LABEL_MT\n");insert_ins(temp);print_ins();if_type=0;if_cnt++;
+				}//0
+    | bool_op LT bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
+				sprintf(temp,"\tiflt LABEL_LT\n");insert_ins(temp);print_ins();if_type=1;if_cnt++;
+				}//1
+    | bool_op MTE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
+				sprintf(temp,"\tifge LABEL_MTE\n");insert_ins(temp);print_ins();if_type=2;if_cnt++;
+				}//2
+    | bool_op LTE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
+				sprintf(temp,"\tifle LABEL_LTE\n");insert_ins(temp);print_ins();if_type=3;if_cnt++;
+				}//3
+    | bool_op EQ bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
+				sprintf(temp,"\tifeq LABEL_EQ\n");insert_ins(temp);print_ins();if_type=4;if_cnt++;
+				}//4
+    | bool_op NE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
+				sprintf(temp,"\tifne LABEL_NE\n");insert_ins(temp);print_ins();if_type=5;if_cnt++;
+				}//5
     | bool_op AND bool_fi	
     | bool_op OR bool_fi
     | bool_fi
 ;
 bool_fi
-    : LB bool_op RB	
-    | ID		{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);}
-    | initializer	
+    : LB bool_op RB
+    | ID		{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+			int ch = check_static($1); int ty = check_type($1);
+			if(ch==1){//if static-->store static
+				char temp[100];
+				if(ty==0){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+					sprintf(temp,"\ti2f\n");insert_ins(temp);
+				}
+				else if (ty == 1){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);
+				}	
+				else if (ty == 2){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s Z\n",$1);insert_ins(temp);
+					sprintf(temp,"\ti2f\n");insert_ins(temp);
+				}
+				else  {
+					sprintf(temp,"\tgetstatic compiler_hw3/%s Ljava/lang/String;\n",$1);insert_ins(temp);
+				}
+				argu_cnt++;	
+			}
+			else {
+				char temp[100];int i=get_index($1);
+				if(ty==0){
+					sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+					sprintf(temp,"\ti2f\n");insert_ins(temp);
+				}
+				else if(ty == 1){
+					sprintf(temp,"\tfload %d\n",i );insert_ins(temp);	
+				}
+				else if (ty == 2){
+					sprintf(temp,"\tiload %d\n",i );insert_ins(temp);
+					sprintf(temp,"\ti2f\n");insert_ins(temp);
+				}
+				else  {
+					sprintf(temp,"\taload %d\n",i );insert_ins(temp);
+				}					
+			}
+			print_ins();
+			}
+    | initializer	{char temp[100];
+			if(initializer_flag==0)		{sprintf(temp,"\tldc %d\n",(int)$1);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\ti2f\n");insert_ins(temp);}
+			else if(initializer_flag==1)	{sprintf(temp,"\tldc %lf\n",$1);}
+			else 				{sprintf(temp,"\tldc %d\n",(int)$1);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\ti2f\n");insert_ins(temp);}
+			print_ins();
+			initializer_flag=0;
+			}
+;
+argu_fi
+    :  ID		{int f=lookup_symbol($1); int flag=semantic_error(f,0,$1);
+			int ch = check_static($1); int ty = check_type($1);
+			if(ch==1){//if static-->store static
+				char temp[100];
+				if(ty==0){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s I\n",$1);insert_ins(temp);memset(temp,'\0',100);
+					argu[argu_cnt]=0;
+				}
+				else if (ty == 1){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s F\n",$1);insert_ins(temp);argu[argu_cnt]=1;
+				}	
+				else if (ty == 2){
+					sprintf(temp,"\tgetstatic compiler_hw3/%s Z\n",$1);insert_ins(temp);argu[argu_cnt]=2;
+				}
+				else  {
+					sprintf(temp,"\tgetstatic compiler_hw3/%s Ljava/lang/String;\n",$1);insert_ins(temp);argu[argu_cnt]=4;
+				}
+				argu_cnt++;	
+			}
+			else {
+				char temp[100];int i=get_index($1);
+				if(ty==0){
+					sprintf(temp,"\tiload %d\n",i );insert_ins(temp);memset(temp,'\0',100);
+					argu[argu_cnt]=0;
+				}
+				else if(ty == 1){
+					sprintf(temp,"\tfload %d\n",i );insert_ins(temp);argu[argu_cnt]=1;	
+				}
+				else if (ty == 2){
+					sprintf(temp,"\tiload %d\n",i );insert_ins(temp);argu[argu_cnt]=2;
+				}
+				else  {
+					sprintf(temp,"\taload %d\n",i );insert_ins(temp);argu[argu_cnt]=4;
+				}
+				argu_cnt++;					
+			}
+			print_ins();
+			}
+    | initializer	{char temp[100];
+			if(initializer_flag==0)		{argu[argu_cnt]=0;sprintf(temp,"\tldc %d\n",(int)$1);}
+			else if(initializer_flag==1)	{argu[argu_cnt]=1;sprintf(temp,"\tldc %f\n",$1);}
+			else 				{argu[argu_cnt]=2;sprintf(temp,"\tldc %d\n",(int)$1);}
+			insert_ins(temp);
+			print_ins();
+			argu_cnt++;
+			initializer_flag=0;
+			}
 ;
 print_func
     : PRINT LB ID RB SEMICOLON		{int f=lookup_symbol($3); int flag=semantic_error(f,0,$3);
@@ -932,7 +1155,7 @@ print_func
 					sprintf(temp,"\tswap\n");insert_ins(temp);memset(temp,'\0',100);
 					sprintf(temp,"\tinvokevirtual java/io/PrintStream/println(F)V\n");insert_ins(temp);
 					print_ins();
-					}
+					}initializer_flag=0;
 					}
 ;
 
@@ -1276,13 +1499,16 @@ void insert_ins(char *s){ //insert the instruction s into INS_SET
 }
 void print_ins(){
 	int i=0;
-	while(i<200){
-		if(INS_SET[i].ins[0]!='\0'){
-			fprintf(file,"%s",INS_SET[i].ins);
+	if(hold_on==0){//for if_stat
+		while(i<200){
+			if(INS_SET[i].ins[0]!='\0'){
+				fprintf(file,"%s",INS_SET[i].ins);
+			}
+			i++;
 		}
-		i++;
+		ins_init();
+		return;
 	}
-	ins_init();
 	return;
 }
 int get_index(char *name){
@@ -1363,5 +1589,96 @@ void para_attri_insert(){
 void print_all(){
 	table_element* T=table_head;
 	while(T){printf("XX: %s\n",T->name);T=T->next;}
+	return;
+}
+void check_return_type_use(char *name){
+	table_element* T=table_head;
+	int t=0,j=0;
+	char temp[100];
+	while(T){
+		if(strcmp(T->name,name)==0){
+			if(T->kind==0){
+				sprintf(temp,"\tinvokestatic compiler_hw3/%s(",T->name);
+				t=T->attri[j];
+				while(t>-1){
+					j++;
+					if(t==0)	{strcat(temp,"I");}
+					else if(t==1)	{strcat(temp,"F");}
+					else if(t==2)	{strcat(temp,"Z");}
+					else if(t==4)	{strcat(temp,"Ljava/lang/String;");}
+					t=T->attri[j];
+				}
+				strcat(temp,")");
+				if(T->type==0)		{strcat(temp,"I\n");insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\ti2f\n");insert_ins(temp);}
+				else if(T->type==1)	{strcat(temp,"F\n");insert_ins(temp);}
+				else if(T->type==2)	{strcat(temp,"Z\n");insert_ins(temp);sprintf(temp,"\ti2f\n");insert_ins(temp);}
+				else if(T->type==4)	{strcat(temp,"Ljava/lang/String;\n");insert_ins(temp);}//this line is for debugging
+				else {strcat(temp,"V\n");insert_ins(temp);}
+				
+			}
+		}
+		T=T->next;
+	}
+	print_ins();
+	
+}
+void check_argu(char *name){
+	table_element* T=table_head;
+	int t=0,j=0;
+	int argu_f=0;
+	while(T){
+		if(strcmp(T->name,name)==0){
+			if(T->kind==0){
+				t=T->attri[j];
+				while(t>-1){
+					if(t!=argu[j]){
+					argu_f=1;
+					}
+					j++;
+					t=T->attri[j];
+				}
+				
+				
+			}
+		}
+		if(argu_f==1){argu_type_error();return;}
+		T=T->next;
+	}
+	if(j != argu_cnt){argu_type_error();/*printf("\n%d %d\n",j,argu_cnt);*/return;}
+}
+void argu_type_error(){
+	if(binary_yyline[yylineno+1]!=1){
+		binary_yyline[yylineno+1]=1;				
+		printf("%d: %s\n",yylineno+1,buff);
+	}
+	printf("\n|-----------------------------------------------|\n");
+	printf("| Error found in line %d: %s\n", yylineno+1, buff);
+	printf("| function formal parameter is not the same");
+	printf("\n|-----------------------------------------------|\n\n");
+	print_or_not=1;
+	return;
+}
+void divide_invalid(){
+	if(binary_yyline[yylineno+1]!=1){
+		binary_yyline[yylineno+1]=1;				
+		printf("%d: %s\n",yylineno+1,buff);
+	}
+	printf("\n|-----------------------------------------------|\n");
+	printf("| Error found in line %d: %s\n", yylineno+1, buff);
+	printf("| Variable divided by zero");
+	printf("\n|-----------------------------------------------|\n\n");
+	print_or_not=1;
+	return;
+}
+void rem_invalid(){
+	if(binary_yyline[yylineno+1]!=1){
+		binary_yyline[yylineno+1]=1;				
+		printf("%d: %s\n",yylineno+1,buff);
+	}
+	printf("\n|-----------------------------------------------|\n");
+	printf("| Error found in line %d: %s\n", yylineno+1, buff);
+	printf("| %% with float data type");
+	printf("\n|-----------------------------------------------|\n\n");
+	print_or_not=1;
 	return;
 }
