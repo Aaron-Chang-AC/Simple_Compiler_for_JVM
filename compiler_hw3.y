@@ -51,6 +51,7 @@ int if_type=-1;
 int if_cnt=0;
 int ex_cnt=0;
 int wh_cnt=0;
+int start_cnt=0;
 int argu[50];
 int argu_cnt=0;
 
@@ -97,7 +98,7 @@ void rem_invalid();
 %token SEMICOLON COMMA ASGN LB RB ADD SUB MUL DIV MOD INC DEC ADDASGN DECASGN MULASGN DIVASGN MODASGN
 %token LCB RCB LSB RSB MT LT MTE LTE EQ NE AND OR
 %token <i_val>INT FLOAT BOOL STRING VOID
-
+%token IF ELSE
 /* Token with return, which need to sepcify type --> terminal*/
 %token <string> ID
 %token <i_val> I_CONST
@@ -108,7 +109,7 @@ void rem_invalid();
 %type <i_val> type type_str 
 %type <string> initializer_str
 %type <f_val> initializer basic_op multiplication factor
-%nonassoc IF ELSE
+//%nonassoc IF ELSE
 %left ADD SUB MUL DIV MOD
 /* Yacc will start at this nonterminal */
 %start program
@@ -241,12 +242,22 @@ compound_stat
     | while_stat
 ;
 if_stat //same scope
-    : IF LB bool_expression RB LCB program RCB			
-    | IF LB bool_expression RB LCB program RCB else_stat
+    : IF {char temp[100];sprintf(temp,"START%d:\n",start_cnt);insert_ins(temp);print_ins();start_cnt++;}LB bool_expression RB {
+				char temp[100];
+				if(if_type==0)		{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
+				else if(if_type==1)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
+				else if(if_type==2)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
+				else if(if_type==3)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
+				else if(if_type==4)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
+				else			{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
+
+				}LCB program RCB {char temp[100];sprintf(temp,"\tgoto EXIT%d\n",ex_cnt);insert_ins(temp);print_ins();
+						}else_stat//{char temp[100];sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();}
 ;
 else_stat
-    : ELSE LCB program RCB	
+    : ELSE LCB {char temp[100];sprintf(temp,"START%d:\n",start_cnt);insert_ins(temp);print_ins();} program RCB{char temp[100];sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();ex_cnt++;}
     | ELSE if_stat
+    |
 ;
 for_stat
     : FOR LB assignment_expression SEMICOLON bool_expression SEMICOLON assignment_expression RB LCB program RCB 
@@ -259,16 +270,13 @@ for_stat
     | FOR LB SEMICOLON SEMICOLON RB LCB program RCB
 ;
 while_stat
-    : WHILE LB {char temp[100];sprintf(temp,"LABEL_BEGIN:\n");insert_ins(temp);print_ins();wh_cnt++;} bool_expression {
-	char temp[100];
-	insert_ins("\tgoto LABEL_FALSE\n");print_ins();
-	if(if_type==0){sprintf(temp,"LABEL_MT:\n");insert_ins(temp);print_ins();}
-	else if(if_type==1)	{sprintf(temp,"LABEL_LT:\n");insert_ins(temp);print_ins();}
-	else if(if_type==2)	{sprintf(temp,"LABEL_MTE:\n");insert_ins(temp);print_ins();}
-	else if(if_type==3)	{sprintf(temp,"LABEL_LTE:\n");insert_ins(temp);print_ins();}
-	else if(if_type==4)	{sprintf(temp,"LABEL_EQ:\n");insert_ins(temp);print_ins();}
-	else			{sprintf(temp,"LABEL_NE:\n");insert_ins(temp);print_ins();}
-	} RB LCB program RCB {insert_ins("\tgoto LABEL_BEGIN\n");insert_ins("LABEL_FALSE:\n");print_ins();}
+    : WHILE LB {char temp[100];sprintf(temp,"LABEL_BEGIN%d:\n",wh_cnt);insert_ins(temp);print_ins();} bool_expression {
+	char temp[100];sprintf(temp,"\tgoto LABEL_FALSE%d\n",wh_cnt);
+	insert_ins(temp);print_ins();
+	sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();
+	} RB LCB program RCB {char temp[100];sprintf(temp,"\tgoto LABEL_BEGIN%d\n",wh_cnt);insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"LABEL_FALSE%d:\n",wh_cnt);insert_ins(temp);print_ins();wh_cnt++;
+				}
 ;
 declaration
     : type ID ASGN initializer SEMICOLON 		{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,1,$1,current_scope);
@@ -963,22 +971,22 @@ bool_expression
 ;
 bool_op
     : bool_op MT bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifgt LABEL_MT\n");insert_ins(temp);print_ins();if_type=0;if_cnt++;
+				sprintf(temp,"\tifgt LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=0;if_cnt++;
 				}//0
     | bool_op LT bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tiflt LABEL_LT\n");insert_ins(temp);print_ins();if_type=1;if_cnt++;
+				sprintf(temp,"\tiflt LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=1;if_cnt++;
 				}//1
     | bool_op MTE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifge LABEL_MTE\n");insert_ins(temp);print_ins();if_type=2;if_cnt++;
+				sprintf(temp,"\tifge LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=2;if_cnt++;
 				}//2
     | bool_op LTE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifle LABEL_LTE\n");insert_ins(temp);print_ins();if_type=3;if_cnt++;
+				sprintf(temp,"\tifle LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=3;if_cnt++;
 				}//3
     | bool_op EQ bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifeq LABEL_EQ\n");insert_ins(temp);print_ins();if_type=4;if_cnt++;
+				sprintf(temp,"\tifeq LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=4;if_cnt++;
 				}//4
     | bool_op NE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifne LABEL_NE\n");insert_ins(temp);print_ins();if_type=5;if_cnt++;
+				sprintf(temp,"\tifne LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=5;if_cnt++;
 				}//5
     | bool_op AND bool_fi	
     | bool_op OR bool_fi

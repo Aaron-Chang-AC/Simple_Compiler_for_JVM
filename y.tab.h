@@ -85,14 +85,14 @@ extern int yydebug;
     BOOL = 295,
     STRING = 296,
     VOID = 297,
-    ID = 298,
-    I_CONST = 299,
-    F_CONST = 300,
-    STR_CONST = 301,
-    _TRUE = 302,
-    _FALSE = 303,
-    IF = 304,
-    ELSE = 305
+    IF = 298,
+    ELSE = 299,
+    ID = 300,
+    I_CONST = 301,
+    F_CONST = 302,
+    STR_CONST = 303,
+    _TRUE = 304,
+    _FALSE = 305
   };
 #endif
 /* Tokens.  */
@@ -136,21 +136,21 @@ extern int yydebug;
 #define BOOL 295
 #define STRING 296
 #define VOID 297
-#define ID 298
-#define I_CONST 299
-#define F_CONST 300
-#define STR_CONST 301
-#define _TRUE 302
-#define _FALSE 303
-#define IF 304
-#define ELSE 305
+#define IF 298
+#define ELSE 299
+#define ID 300
+#define I_CONST 301
+#define F_CONST 302
+#define STR_CONST 303
+#define _TRUE 304
+#define _FALSE 305
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 87 "compiler_hw3.y" /* yacc.c:1909  */
+#line 88 "compiler_hw3.y" /* yacc.c:1909  */
 
     	int i_val;
     	double f_val;
