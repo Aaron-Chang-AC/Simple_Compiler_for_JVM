@@ -256,8 +256,8 @@ if_stat //same scope
 ;
 else_stat
     : ELSE LCB {char temp[100];sprintf(temp,"START%d:\n",start_cnt);insert_ins(temp);print_ins();} program RCB{char temp[100];sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();ex_cnt++;}
-    | ELSE if_stat
-    |
+    | ELSE /*{char temp[100];sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();ex_cnt++;}*/ if_stat
+    | {char temp[100];sprintf(temp,"START%d:\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();ex_cnt++;start_cnt++;}
 ;
 for_stat
     : FOR LB assignment_expression SEMICOLON bool_expression SEMICOLON assignment_expression RB LCB program RCB 
