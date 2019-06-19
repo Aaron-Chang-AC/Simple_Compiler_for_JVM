@@ -1,16 +1,29 @@
 void main(){
-	int a = 0;
+	int a = 20;
 	int b=3;
-   	if (a == 20){
-        print("a is equal to 20");
-    	}
-	else if(b==3){
-	print("B is: ");
+   	int i=0;
+	while(i<=3){
+	if(b == 3){
 	print(b);
-	b-=1;
+	b++;
 	}
-	b=b*3+4;
-	print(b);
+	else{
+	print("AAA");
+	}
+	i++;
+	}
+	i=0;
+	b=3;
+	int j=0;
+	while(i<3){
+	print(i);
+	j=0;
+		while(j<3){
+		print(j);
+		j++;
+		}
+	i++;
+	}
 	return;
 }
 

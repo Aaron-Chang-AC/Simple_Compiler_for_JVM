@@ -44,14 +44,15 @@ void attri_cpy(table_element* temp);
 int syntax_error_flag=0;
 int current_scope=0;
 
+int error_flag=0;
 int para_cnt=0;
 int para_attri[100];//the type of each parameter
 
 int if_type=-1;
-int if_cnt=0;
-int ex_cnt=0;
-int wh_cnt=0;
-int start_cnt=0;
+int if_cnt[10];
+int ex_cnt[10];
+int wh_cnt[10];
+int start_cnt[10];
 int argu[50];
 int argu_cnt=0;
 
@@ -242,22 +243,23 @@ compound_stat
     | while_stat
 ;
 if_stat //same scope
-    : IF {char temp[100];sprintf(temp,"START%d:\n",start_cnt);insert_ins(temp);print_ins();start_cnt++;}LB bool_expression RB {
+    : IF {char temp[100];sprintf(temp,"START%d%d:\n",current_scope,start_cnt[current_scope]);insert_ins(temp);print_ins();start_cnt[current_scope]++;}LB bool_expression RB {
 				char temp[100];
-				if(if_type==0)		{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
-				else if(if_type==1)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
-				else if(if_type==2)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
-				else if(if_type==3)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
-				else if(if_type==4)	{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
-				else			{sprintf(temp,"\tgoto START%d\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();}
+				if(if_type==0)		{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
+				else if(if_type==1)	{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
+				else if(if_type==2)	{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
+				else if(if_type==3)	{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
+				else if(if_type==4)	{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
+				else			{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
 
-				}LCB program RCB {char temp[100];sprintf(temp,"\tgoto EXIT%d\n",ex_cnt);insert_ins(temp);print_ins();
-						}else_stat//{char temp[100];sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();}
+				}LCB program RCB {char temp[100];sprintf(temp,"\tgoto EXIT%d%d\n",current_scope,ex_cnt[current_scope]);insert_ins(temp);print_ins();
+						} else_stat
 ;
 else_stat
-    : ELSE LCB {char temp[100];sprintf(temp,"START%d:\n",start_cnt);insert_ins(temp);print_ins();} program RCB{char temp[100];sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();ex_cnt++;}
-    | ELSE /*{char temp[100];sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();ex_cnt++;}*/ if_stat
-    | {char temp[100];sprintf(temp,"START%d:\n",start_cnt);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"EXIT%d:\n",ex_cnt);insert_ins(temp);print_ins();ex_cnt++;start_cnt++;}
+    : ELSE  {char temp[100];sprintf(temp,"START%d%d:\n",current_scope-1,start_cnt[current_scope-1]);insert_ins(temp);print_ins();start_cnt[current_scope-1]++;} LCB program RCB {char temp[100];sprintf(temp,"EXIT%d%d:\n",current_scope,ex_cnt[current_scope]);insert_ins(temp);print_ins();ex_cnt[current_scope]++;}
+    | ELSE  if_stat
+    | {char temp[100];sprintf(temp,"START%d%d:\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"EXIT%d%d:\n",current_scope,ex_cnt[current_scope]);insert_ins(temp);print_ins();ex_cnt[current_scope]++;start_cnt[current_scope]++;}
+
 ;
 for_stat
     : FOR LB assignment_expression SEMICOLON bool_expression SEMICOLON assignment_expression RB LCB program RCB 
@@ -270,12 +272,12 @@ for_stat
     | FOR LB SEMICOLON SEMICOLON RB LCB program RCB
 ;
 while_stat
-    : WHILE LB {char temp[100];sprintf(temp,"LABEL_BEGIN%d:\n",wh_cnt);insert_ins(temp);print_ins();} bool_expression {
-	char temp[100];sprintf(temp,"\tgoto LABEL_FALSE%d\n",wh_cnt);
+    : WHILE LB {char temp[100];sprintf(temp,"LABEL_BEGIN%d%d:\n",current_scope,wh_cnt[current_scope]);insert_ins(temp);print_ins();} bool_expression {
+	char temp[100];sprintf(temp,"\tgoto LABEL_FALSE%d%d\n",current_scope,wh_cnt[current_scope]);
 	insert_ins(temp);print_ins();
-	sprintf(temp,"LABEL%d:\n",if_cnt-1);insert_ins(temp);print_ins();
-	} RB LCB program RCB {char temp[100];sprintf(temp,"\tgoto LABEL_BEGIN%d\n",wh_cnt);insert_ins(temp);memset(temp,'\0',100);
-				sprintf(temp,"LABEL_FALSE%d:\n",wh_cnt);insert_ins(temp);print_ins();wh_cnt++;
+	sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();
+	} RB LCB program RCB {char temp[100];sprintf(temp,"\tgoto LABEL_BEGIN%d%d\n",current_scope,wh_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);
+				sprintf(temp,"LABEL_FALSE%d%d:\n",current_scope,wh_cnt[current_scope]);insert_ins(temp);print_ins();wh_cnt[current_scope]++;
 				}
 ;
 declaration
@@ -971,22 +973,22 @@ bool_expression
 ;
 bool_op
     : bool_op MT bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifgt LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=0;if_cnt++;
+				sprintf(temp,"\tifgt LABEL%d%d\n",current_scope,if_cnt[current_scope]);insert_ins(temp);print_ins();if_type=0;if_cnt[current_scope]++;
 				}//0
     | bool_op LT bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tiflt LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=1;if_cnt++;
+				sprintf(temp,"\tiflt LABEL%d%d\n",current_scope,if_cnt[current_scope]);insert_ins(temp);print_ins();if_type=1;if_cnt[current_scope]++;
 				}//1
     | bool_op MTE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifge LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=2;if_cnt++;
+				sprintf(temp,"\tifge LABEL%d%d\n",current_scope,if_cnt[current_scope]);insert_ins(temp);print_ins();if_type=2;if_cnt[current_scope]++;
 				}//2
     | bool_op LTE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifle LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=3;if_cnt++;
+				sprintf(temp,"\tifle LABEL%d%d\n",current_scope,if_cnt[current_scope]);insert_ins(temp);print_ins();if_type=3;if_cnt[current_scope]++;
 				}//3
     | bool_op EQ bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifeq LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=4;if_cnt++;
+				sprintf(temp,"\tifeq LABEL%d%d\n",current_scope,if_cnt[current_scope]);insert_ins(temp);print_ins();if_type=4;if_cnt[current_scope]++;
 				}//4
     | bool_op NE bool_fi	{char temp[100];sprintf(temp,"\tfsub\n");insert_ins(temp);memset(temp,'\0',100);insert_ins("\tf2i\n");
-				sprintf(temp,"\tifne LABEL%d\n",if_cnt);insert_ins(temp);print_ins();if_type=5;if_cnt++;
+				sprintf(temp,"\tifne LABEL%d%d\n",current_scope,if_cnt[current_scope]);insert_ins(temp);print_ins();if_type=5;if_cnt[current_scope]++;
 				}//5
     | bool_op AND bool_fi	
     | bool_op OR bool_fi
@@ -1232,12 +1234,15 @@ int main(int argc, char** argv)
 	/****************************************************/
 
    	fclose(file);
-
+	if(error_flag==1){
+		int ret=remove("compiler_hw3.j");
+	}
 	return 0;
 }
 
 void yyerror(char *s)
 {
+	error_flag=1;
 	if(binary_yyline[yylineno+1]!=1){
 		binary_yyline[yylineno+1]=1;
 		printf("%d: %s\n",yylineno+1,buff);
@@ -1296,6 +1301,7 @@ int lookup_symbol(char* name) {
 int semantic_error(int flag,int mode,char* s){
 	if(flag==0){
 		if(un_f==1 && mode==0){
+			error_flag=1;
 			if(binary_yyline[yylineno+1]!=1){
 				binary_yyline[yylineno+1]=1;
 				printf("%d: %s\n",yylineno+1,buff);
@@ -1309,6 +1315,7 @@ int semantic_error(int flag,int mode,char* s){
 			return 1;
 		}
 		else if(mode==0){ //undeclared variable
+			error_flag=1;
 			if(binary_yyline[yylineno+1]!=1){
 				binary_yyline[yylineno+1]=1;				
 				printf("%d: %s\n",yylineno+1,buff);
@@ -1326,6 +1333,7 @@ int semantic_error(int flag,int mode,char* s){
 	}
 	else{
 		if(mode==1){ //redeclared variable
+			error_flag=1;
 			if(binary_yyline[yylineno+1]!=1){
 				binary_yyline[yylineno+1]=1;				
 				printf("%d: %s\n",yylineno+1,buff);
@@ -1578,6 +1586,7 @@ int check_return_type(){
 	return 3; //default type is void
 }
 void return_type_error(){
+	error_flag=1;
 	if(binary_yyline[yylineno+1]!=1){
 		binary_yyline[yylineno+1]=1;				
 		printf("%d: %s\n",yylineno+1,buff);
@@ -1655,6 +1664,7 @@ void check_argu(char *name){
 	if(j != argu_cnt){argu_type_error();/*printf("\n%d %d\n",j,argu_cnt);*/return;}
 }
 void argu_type_error(){
+	error_flag=1;
 	if(binary_yyline[yylineno+1]!=1){
 		binary_yyline[yylineno+1]=1;				
 		printf("%d: %s\n",yylineno+1,buff);
@@ -1667,6 +1677,7 @@ void argu_type_error(){
 	return;
 }
 void divide_invalid(){
+	error_flag=1;
 	if(binary_yyline[yylineno+1]!=1){
 		binary_yyline[yylineno+1]=1;				
 		printf("%d: %s\n",yylineno+1,buff);
@@ -1679,6 +1690,7 @@ void divide_invalid(){
 	return;
 }
 void rem_invalid(){
+	error_flag=1;
 	if(binary_yyline[yylineno+1]!=1){
 		binary_yyline[yylineno+1]=1;				
 		printf("%d: %s\n",yylineno+1,buff);
