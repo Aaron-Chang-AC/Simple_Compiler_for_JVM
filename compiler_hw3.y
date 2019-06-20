@@ -44,6 +44,7 @@ void attri_cpy(table_element* temp);
 int syntax_error_flag=0;
 int current_scope=0;
 
+int else_shift=0;
 int error_flag=0;
 int para_cnt=0;
 int para_attri[100];//the type of each parameter
@@ -81,6 +82,7 @@ void check_argu(char *name);
 void argu_type_error();
 void divide_invalid();
 void rem_invalid();
+
 /* Use variable or self-defined structure to represent
  * nonterminal and token type*/
 
@@ -130,7 +132,7 @@ program
 			}
 		}
 		check_scope=0;
-		dump_symbol(current_scope); //print_all();//print all for testing
+		dump_symbol(current_scope+1); //print_all();//print all for testing
 		print_ins();//////////////////print .j
 		}
     | 
@@ -252,13 +254,17 @@ if_stat //same scope
 				else if(if_type==4)	{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
 				else			{sprintf(temp,"\tgoto START%d%d\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"LABEL%d%d:\n",current_scope,if_cnt[current_scope]-1);insert_ins(temp);print_ins();}
 
-				}LCB program RCB {char temp[100];sprintf(temp,"\tgoto EXIT%d%d\n",current_scope,ex_cnt[current_scope]);insert_ins(temp);print_ins();
+				}LCB program RCB {char temp[100];sprintf(temp,"\tgoto EXIT%d%d\n",current_scope,ex_cnt[current_scope]);insert_ins(temp);print_ins(); else_shift=current_scope;
 						} else_stat
 ;
 else_stat
     : ELSE  {char temp[100];sprintf(temp,"START%d%d:\n",current_scope-1,start_cnt[current_scope-1]);insert_ins(temp);print_ins();start_cnt[current_scope-1]++;} LCB program RCB {char temp[100];sprintf(temp,"EXIT%d%d:\n",current_scope,ex_cnt[current_scope]);insert_ins(temp);print_ins();ex_cnt[current_scope]++;}
     | ELSE  if_stat
-    | {char temp[100];sprintf(temp,"START%d%d:\n",current_scope,start_cnt[current_scope]);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"EXIT%d%d:\n",current_scope,ex_cnt[current_scope]);insert_ins(temp);print_ins();ex_cnt[current_scope]++;start_cnt[current_scope]++;}
+    | {
+	char temp[100];sprintf(temp,"START%d%d:\n",else_shift,start_cnt[else_shift]);
+	insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"EXIT%d%d:\n",else_shift,ex_cnt[else_shift]);
+	insert_ins(temp);print_ins();ex_cnt[else_shift]++;start_cnt[else_shift]++;
+   }
 
 ;
 for_stat
@@ -347,7 +353,7 @@ declaration
 								}
 							}			
     | type ID LB RB SEMICOLON				{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope);}//function
-    | type ID LB parameter RB SEMICOLON			{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope);}//function
+    | type ID LB parameter RB SEMICOLON		{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope);}  //function
 ;
 declaration_scope_add
     : type ID LB RB 	{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope-1);func_cnt++;//func_cnt is function count
@@ -372,7 +378,7 @@ declaration_scope_add
 					print_ins();
 				}
 			} LCB program RCB	{insert_ins(".end method\n");print_ins();}//function
-    | type ID LB parameter RB 	{int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope-1);
+    | type ID  LB parameter RB {int f=lookup_symbol($2); int flag=semantic_error(f,1,$2); create_symbol(flag,$2,0,$1,current_scope-1);
 				char temp[100];
 				sprintf(temp,".method public static %s(",$2);
 				int i;
@@ -1037,7 +1043,7 @@ bool_fi
 			}
     | initializer	{char temp[100];
 			if(initializer_flag==0)		{sprintf(temp,"\tldc %d\n",(int)$1);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\ti2f\n");insert_ins(temp);}
-			else if(initializer_flag==1)	{sprintf(temp,"\tldc %lf\n",$1);}
+			else if(initializer_flag==1)	{sprintf(temp,"\tldc %lf\n",$1);insert_ins(temp);}
 			else 				{sprintf(temp,"\tldc %d\n",(int)$1);insert_ins(temp);memset(temp,'\0',100);sprintf(temp,"\ti2f\n");insert_ins(temp);}
 			print_ins();
 			initializer_flag=0;
@@ -1273,17 +1279,33 @@ void create_symbol(int flag,char* name,int kind,int type,int scope) {
 	return;
 }
 void insert_symbol(table_element* temp) {
+	int i=0;
 	if(!table_head){
 		table_head=temp;
 		//printf("AAA:%s\n",table_head->name);
 		return;
 	}
 	table_element *T=table_head;
+	table_element *T3=table_head;
 	while(T){
-		if(T->next==NULL){T->next=temp;break;}
-		else {T=T->next;}
+		if((temp->scope) >= (T->scope)){
+			T3=T;
+			T=T->next;
+			i=1;
+		}
+		else{break;}
+		/*if(T->next==NULL){T->next=temp;break;}
+		else {T=T->next;}*/
 	}
-	//printf("AAA:%s\n",T->name);
+	if(i==1){//add
+		T3->next=temp;
+		if(T){temp->next=T;}
+	}
+	else{
+		temp->next=T;
+		table_head=temp;
+	}
+	//printf("SSS\n");
 	return;
 }
 int lookup_symbol(char* name) {
@@ -1360,54 +1382,15 @@ void dump_symbol(int scope) {
 		return;
 	}
 	int i=0,max=0;
-	max=T2->scope;
-	if(max>0){
-		while(T5){
-			if(max < T5->scope){
-				max=T5->scope;
-			}
-			T5 = T5 -> next;
-		}
-		if(T2->scope==max){
-			printf("\n%-10s%-10s%-12s%-10s%-10s%-10s\n","Index", "Name", "Kind", "Type", "Scope", "Attribute");
-			while(T2->scope==max){
-				printf("\n%-10d%-10s",i,T2->name);
-				if(T2->kind==0){printf("%-12s","function");}
-				else if(T2->kind==1){printf("%-12s","variable");}
-				else {printf("%-12s","parameter");}
+	max=T5->scope;
+	while(T5){if(max<T5->scope){max=T5->scope;}T5=T5->next;}
+	if(max < scope){return;}
 
-				if(T2->type==0){printf("%-10s","int");}
-				else if(T2->type==1){printf("%-10s","float");}
-				else if(T2->type==2){printf("%-10s","bool");}
-				else if(T2->type==3){printf("%-10s","void");}
-				else 	{printf("%-10s","string");}
-				printf("%-10d",T2->scope);
-				i++;
-				T3=T2;
-				T2=T2->next;
-				free(T3);
-			}
-			table_head=T2;
-			printf("\n\n");
-			return;
-		}
-	}
-	while(T2){
-		if(max < T2->scope){
-			max=T2->scope;
-		}
-		T2 = T2 -> next;
-	}
-	if(max==0 || (max!=scope+1)){return;}
 	printf("\n%-10s%-10s%-12s%-10s%-10s%-10s\n","Index", "Name", "Kind", "Type", "Scope", "Attribute");
-	int flag_find=0;
 	while(T){
-		if(T->scope < max && flag_find==0){
+		if(T->scope < scope){
 			T3=T;
 			T=T->next;
-			if(T->scope==max){
-				flag_find=1;
-			}
 			continue;
 		}
 		printf("\n%-10d%-10s",i,T->name);
@@ -1439,15 +1422,13 @@ void dump_symbol(int scope) {
 		i++;
 		table_element* T4 =T;
 		T=T->next;
-		free(T4);
-		if(T){
-			if(T->scope<max){break;}
-		}	
+		free(T4);	
 	}
 	printf("\n\n");
-	T3->next=T;
-	//free(T3->next);
-	//T3->next=NULL;
+	T3->next=NULL;
+	
+	
+	
 }
 void insert_para(int para){
 	int i;

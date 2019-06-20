@@ -5,121 +5,101 @@
 .limit locals 50
 	ldc 20
 	istore 0
-	ldc 2
+	ldc 3
 	istore 1
-START10:
-	iload 0
+	ldc 0
+	istore 2
+LABEL_BEGIN10:
+	iload 2
 	i2f
-	ldc 40
+	ldc 3
 	i2f
 	fsub
 	f2i
-	ifeq LABEL10
-	goto START11
+	ifle LABEL10
+	goto LABEL_FALSE10
 LABEL10:
-	ldc "a is equal to 40"
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
-	goto EXIT10
-START11:
-	iload 0
-	i2f
-	ldc 40
-	i2f
-	fsub
-	f2i
-	ifgt LABEL11
-	goto START12
-LABEL11:
-	ldc "a is larger than 40"
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
 START20:
 	iload 1
 	i2f
-	ldc 0
+	ldc 3
 	i2f
 	fsub
 	f2i
 	ifeq LABEL20
 	goto START21
 LABEL20:
+	iload 1
+	getstatic java/lang/System/out Ljava/io/PrintStream;
+	swap
+	invokevirtual java/io/PrintStream/println(I)V
+	iload 1
+	ldc 1
+	iadd
+	istore 1
+	goto EXIT20
+START21:
 	ldc "AAA"
 	getstatic java/lang/System/out Ljava/io/PrintStream;
 	swap
 	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
-	goto EXIT20
-START21:
-	ldc "BBB"
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
 EXIT20:
-	goto EXIT10
-START12:
-	ldc 666
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(I)V
-START22:
-	iload 1
-	i2f
-	ldc 0
-	i2f
-	fsub
-	f2i
-	ifeq LABEL21
-	goto START23
-LABEL21:
-	ldc "ggg"
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
-	goto EXIT21
-START23:
-	ldc "hhh"
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V
-EXIT21:
-EXIT10:
-	ldc 3
+	iload 2
+	ldc 1
+	iadd
 	istore 2
-START13:
+	goto LABEL_BEGIN10
+LABEL_FALSE10:
+	ldc 0.000000
+	f2i
+	istore 2
+	ldc 3.000000
+	f2i
+	istore 1
+	ldc 0
+	istore 3
+LABEL_BEGIN11:
 	iload 2
 	i2f
 	ldc 3
 	i2f
 	fsub
 	f2i
-	ifeq LABEL12
-	goto START14
-LABEL12:
-	iload 0
+	iflt LABEL11
+	goto LABEL_FALSE11
+LABEL11:
+	iload 2
 	getstatic java/lang/System/out Ljava/io/PrintStream;
 	swap
 	invokevirtual java/io/PrintStream/println(I)V
-	goto EXIT11
-START14:
-EXIT11:
-START15:
-	iload 2
+	ldc 0.000000
+	f2i
+	istore 3
+LABEL_BEGIN20:
+	iload 3
 	i2f
 	ldc 3
 	i2f
 	fsub
 	f2i
-	ifeq LABEL13
-	goto START16
-LABEL13:
-	iload 0
+	iflt LABEL21
+	goto LABEL_FALSE20
+LABEL21:
+	iload 3
 	getstatic java/lang/System/out Ljava/io/PrintStream;
 	swap
 	invokevirtual java/io/PrintStream/println(I)V
-	goto EXIT12
-START16:
-EXIT12:
+	iload 3
+	ldc 1
+	iadd
+	istore 3
+	goto LABEL_BEGIN20
+LABEL_FALSE20:
+	iload 2
+	ldc 1
+	iadd
+	istore 2
+	goto LABEL_BEGIN11
+LABEL_FALSE11:
 	return
 .end method
